@@ -68,18 +68,26 @@ reviewed.
 
 ## Design
 
-Brand tokens come from
-[opencitadel/citadel-design](https://github.com/opencitadel/citadel-design) —
-navy `#062A63`, warm white `#F7F4EE`, Citadel cyan `#00A9F4`. They are marked
-**provisional** there and have not been colour-matched or approved.
+The design language is modelled on the Claude platform docs — warm paper
+surfaces, a serif display face ([Source Serif 4](https://github.com/adobe-fonts/source-serif))
+over [Inter](https://rsms.me/inter/), hairline borders, dark code blocks in both
+modes, and a segmented sun/moon theme toggle — carrying Citadel's own brand
+tokens from
+[opencitadel/citadel-design](https://github.com/opencitadel/citadel-design):
+navy `#062A63`, warm white `#F7F4EE`, Citadel cyan `#00A9F4`. Those tokens are
+marked **provisional** there and have not been colour-matched or approved.
+
+The header, hero, favicon, and OARS page marks are the **selected concept
+renders** from citadel-design (`assets/citadel/citadel-icon.png`,
+`assets/oars/oars-icon-concept.png`), cropped, padded, and resized only — the
+geometry is untouched, per that repository's rules. They are concepts, not
+approved production vectors; when citadel-design productionizes the real
+vectors, replace `src/assets/*.png` and `public/{favicon,apple-touch-icon}.png`
+and `public/brand/oars-icon.png`.
 
 Risk-tier colours are deliberately *not* from the brand palette: they carry
 meaning, and the OARS coral accent sits close enough to the High tier that
 reusing it would make a brand colour read as a severity.
-
-`public/favicon.svg` is a plain geometric placeholder following the family
-grammar. It is not the approved mark — replace it once citadel-design
-productionizes the real vector.
 
 ## Deployment
 

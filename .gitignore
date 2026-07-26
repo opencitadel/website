@@ -6,7 +6,6 @@ dist/
 # artifacts are produced by the standard's own pipeline.
 src/content/docs/
 public/*.json
-!public/favicon.svg
 
 .DS_Store
 *.log

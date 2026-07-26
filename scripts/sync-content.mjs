@@ -150,6 +150,9 @@ head:
   - tag: title
     content: Open Citadel — Open standards for Microsoft security decisions
 hero:
+  image:
+    file: ../../assets/citadel-icon.png
+    alt: The Citadel mark — a navy rampart forming an open C (concept)
   tagline: |
     Open standards for Microsoft security decisions.
     Because a risk rating you cannot inspect is a risk rating you cannot defend.
@@ -220,7 +223,14 @@ production."*
 
 // --- OARS: the specification -------------------------------------------------
 
-write('oars/index.md', rewrite(readFileSync(join(OARS, 'standard', 'index.md'), 'utf8')));
+// The OARS concept mark floats top-right on the standard's landing page.
+// Injected here rather than in the source so the standard stays presentation-
+// free on GitHub, where review happens.
+const oarsIndex = rewrite(readFileSync(join(OARS, 'standard', 'index.md'), 'utf8')).replace(
+  /^(---\n[\s\S]*?\n---\n)/,
+  `$1\n<img src="/brand/oars-icon.png" alt="The OARS mark — the Citadel rampart with a coral open-ring token (concept)" class="oars-page-icon" />\n`
+);
+write('oars/index.md', oarsIndex);
 
 for (const section of spec.sections) {
   write(`oars/${section.file}`, rewrite(readFileSync(join(OARS, 'standard', section.file), 'utf8')));

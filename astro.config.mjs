@@ -30,12 +30,27 @@ export default defineConfig({
       description:
         'Open standards for Microsoft security decisions. OARS — the Open App Risk Standard — ' +
         'rates the risk of applications and the permissions they request in Microsoft Entra ID.',
+      // The concept mark from opencitadel/citadel-design (status: concept, not
+      // an approved production vector). Cropped and resized only.
+      logo: { src: './src/assets/citadel-icon.png', alt: '' },
+      favicon: '/favicon.png',
+      head: [
+        {
+          tag: 'link',
+          attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: '180x180' },
+        },
+      ],
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/opencitadel' },
         { icon: 'discord', label: 'Discord', href: 'https://open-citadel.org/discord' },
       ],
       lastUpdated: true,
       customCss: ['./src/styles/citadel.css'],
+      // Dark code blocks in both modes, platform-docs style.
+      expressiveCode: {
+        themes: ['github-dark'],
+        styleOverrides: { borderRadius: '0.75rem' },
+      },
       // Two groups, one per repository the site renders. A third standard adds
       // a third group; nothing else should.
       sidebar: [
@@ -56,6 +71,7 @@ export default defineConfig({
       ],
       components: {
         Footer: './src/components/Footer.astro',
+        ThemeSelect: './src/components/ThemeSelect.astro',
       },
     }),
   ],

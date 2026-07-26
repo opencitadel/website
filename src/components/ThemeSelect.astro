@@ -1,0 +1,101 @@
+---
+// Replaces Starlight's Auto/Light/Dark <select> with a two-segment sun/moon
+// toggle, in the style of platform.claude.com/docs.
+//
+// Starlight's inline ThemeProvider script has already resolved the effective
+// theme ('light' | 'dark') onto <html data-theme> before this renders, so the
+// toggle only has to reflect that attribute and write the user's choice back
+// to the same localStorage key the provider reads on the next load.
+---
+
+<starlight-theme-toggle>
+  <div class="segments" role="group" aria-label="Colour theme">
+    <button type="button" data-choice="light" aria-label="Light theme" title="Light">
+      <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4.25" />
+        <path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M18.7 5.3 17 7M7 17l-1.7 1.7" />
+      </svg>
+    </button>
+    <button type="button" data-choice="dark" aria-label="Dark theme" title="Dark">
+      <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.5 14.1A8.6 8.6 0 0 1 9.9 3.5a8.6 8.6 0 1 0 10.6 10.6Z" />
+      </svg>
+    </button>
+  </div>
+</starlight-theme-toggle>
+
+<style>
+  starlight-theme-toggle .segments {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--sl-color-hairline);
+    border-radius: 999px;
+    background-color: var(--sl-color-bg-inline-code);
+  }
+
+  starlight-theme-toggle button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.9rem;
+    height: 1.55rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--sl-color-gray-3);
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease;
+  }
+
+  starlight-theme-toggle button:hover {
+    color: var(--sl-color-white);
+  }
+
+  starlight-theme-toggle button[aria-pressed='true'] {
+    background-color: var(--sl-color-bg);
+    color: var(--sl-color-white);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+</style>
+
+<script>
+  class StarlightThemeToggle extends HTMLElement {
+    #observer?: MutationObserver;
+
+    connectedCallback() {
+      this.reflect();
+      for (const button of this.querySelectorAll('button')) {
+        button.addEventListener('click', () => {
+          const theme = button.dataset.choice === 'dark' ? 'dark' : 'light';
+          // The same key Starlight's ThemeProvider reads at page load.
+          try {
+            localStorage.setItem('starlight-theme', theme);
+          } catch {}
+          document.documentElement.dataset.theme = theme;
+        });
+      }
+      // The toggle renders twice (header and mobile menu footer); observing the
+      // root attribute keeps every instance in sync with whoever changed it.
+      this.#observer = new MutationObserver(() => this.reflect());
+      this.#observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-theme'],
+      });
+    }
+
+    disconnectedCallback() {
+      this.#observer?.disconnect();
+    }
+
+    reflect() {
+      const theme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+      for (const button of this.querySelectorAll('button')) {
+        button.setAttribute('aria-pressed', String(button.dataset.choice === theme));
+      }
+    }
+  }
+
+  customElements.define('starlight-theme-toggle', StarlightThemeToggle);
+</script>
