@@ -11,23 +11,31 @@ runtime — a standards site should outlive the infrastructure it launched on.
 |---|---|
 | Production branch | `main` |
 | Framework preset | **None** |
-| Build command | `npm ci && git submodule update --init --recursive && npm run build` |
+| Build command | `npm run build` |
 | Build output directory | `dist` |
 | Root directory | *(empty)* |
 
 Add an environment variable `NODE_VERSION` = `22` under **Settings →
 Environment variables**, for both Production and Preview.
 
+Two things Cloudflare does for you before the build command runs, both confirmed
+against a real build log rather than assumed:
+
+- **Submodules are cloned automatically.** `vendor/oars` and `vendor/community`
+  are checked out during the initial clone, so the build command does not need
+  a `git submodule update`.
+- **Dependencies are installed automatically** — Cloudflare runs
+  `npm clean-install` when it sees a lockfile. Putting `npm ci` in the build
+  command as well just installs everything twice.
+
+Hence the build command is only `npm run build`.
+
 > **Connect this repository, not a content repository.** `opencitadel/community`
 > and `opencitadel/OARS` are content — community in particular has no
 > `package.json`, so a build pointed at it fails immediately on `npm ci` with
 > *"can only install with an existing package-lock.json"*. Cloudflare cannot
-> re-point an existing Pages project at a different repository: delete the
-> project and create a new one.
-
-The explicit `git submodule update` is belt and braces. Cloudflare normally
-fetches submodules during clone, but the step is idempotent and turns a
-confusing empty-directory failure into a no-op when they are already there.
+> re-point an existing Pages project at another repository: delete the project
+> and create a new one.
 
 ### Submodules
 
