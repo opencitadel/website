@@ -1,0 +1,186 @@
+/* open-citadel.org styling.
+ *
+ * Brand tokens come from opencitadel/citadel-design. They are marked
+ * PROVISIONAL there and have not been formally approved or colour-matched, so
+ * treat the values below as a first pass rather than as brand law.
+ *
+ *   Citadel navy   #062A63   fixed shell, primary
+ *   Warm white     #F7F4EE   fixed background
+ *   Citadel cyan   #00A9F4   family accent
+ *   OARS coral     #FF5A36   project accent
+ *
+ * Risk-tier colours are deliberately NOT drawn from the brand palette. They
+ * carry meaning — a reader must be able to tell Critical from High at a glance —
+ * and OARS coral sits close enough to the High tier that reusing it would make
+ * a brand accent look like a severity. Brand colours dress the chrome; tier
+ * colours stay semantic.
+ */
+
+:root {
+  --citadel-navy: #062a63;
+  --citadel-warm-white: #f7f4ee;
+  --citadel-cyan: #00a9f4;
+  --oars-coral: #ff5a36;
+
+  /* Starlight accent ramp, derived from the navy/cyan family. */
+  --sl-color-accent-low: #d6e4f7;
+  --sl-color-accent: #0b3e8f;
+  --sl-color-accent-high: #062a63;
+
+  --citadel-tier-low: #1b6b34;
+  --citadel-tier-medium: #8a4b06;
+  --citadel-tier-high: #a3360f;
+  --citadel-tier-critical: #8c1414;
+
+  --citadel-tier-low-bg: #e6f4ea;
+  --citadel-tier-medium-bg: #fdf0e0;
+  --citadel-tier-high-bg: #fdeae3;
+  --citadel-tier-critical-bg: #fbe4e4;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #0a2a52;
+  --sl-color-accent: #2f7fd4;
+  --sl-color-accent-high: #b3e5fc;
+
+  --citadel-tier-low: #7ee2a8;
+  --citadel-tier-medium: #f7c07a;
+  --citadel-tier-high: #ffa585;
+  --citadel-tier-critical: #ff9b9b;
+
+  --citadel-tier-low-bg: rgba(46, 125, 50, 0.18);
+  --citadel-tier-medium-bg: rgba(237, 108, 2, 0.18);
+  --citadel-tier-high-bg: rgba(216, 67, 21, 0.18);
+  --citadel-tier-critical-bg: rgba(183, 28, 28, 0.24);
+}
+
+/* Site header — the navy shell, carried through from the icon system. */
+
+.header {
+  background: var(--citadel-navy);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.header a,
+.header button,
+.header .site-title {
+  color: var(--citadel-warm-white);
+}
+
+.header .site-title {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* The search button sits on navy in both themes, so it needs its own treatment
+   rather than inheriting the page background. */
+.header site-search button {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.header site-search button kbd {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* The theme picker inherits page-foreground colours, which land dark-on-navy
+   and are unreadable in light mode. Pin it to the header's own palette. */
+.header starlight-theme-select select,
+.header starlight-theme-select label,
+.header starlight-theme-select svg {
+  color: var(--citadel-warm-white);
+  opacity: 1;
+}
+
+.header starlight-theme-select select option {
+  color: initial;
+  background: var(--sl-color-bg);
+}
+
+.header .social-icons a {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.header .social-icons a:hover {
+  color: var(--citadel-warm-white);
+}
+
+/* Risk tiers -------------------------------------------------------------- */
+
+.oars-tier {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.oars-tier--low {
+  color: var(--citadel-tier-low);
+  background: var(--citadel-tier-low-bg);
+}
+.oars-tier--medium {
+  color: var(--citadel-tier-medium);
+  background: var(--citadel-tier-medium-bg);
+}
+.oars-tier--high {
+  color: var(--citadel-tier-high);
+  background: var(--citadel-tier-high-bg);
+}
+.oars-tier--critical {
+  color: var(--citadel-tier-critical);
+  background: var(--citadel-tier-critical-bg);
+}
+
+/* Tables -------------------------------------------------------------------
+   The factor tables carry a lot of columns. Let them use the full measure and
+   scroll rather than wrapping every cell to three lines. */
+
+.sl-markdown-content table {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  font-size: 0.9375rem;
+}
+
+.sl-markdown-content table code {
+  white-space: nowrap;
+}
+
+.sl-markdown-content th {
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.sl-markdown-content td {
+  vertical-align: top;
+}
+
+.citadel-muted {
+  color: var(--sl-color-gray-3);
+  font-size: 0.875em;
+}
+
+/* Attribution footer ------------------------------------------------------ */
+
+.citadel-attribution {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--sl-color-hairline);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--sl-color-gray-3);
+}
+
+.citadel-attribution p {
+  margin: 0 0 0.35rem;
+}
+
+.citadel-attribution a {
+  color: var(--sl-color-gray-2);
+}

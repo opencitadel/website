@@ -1,0 +1,447 @@
+#!/usr/bin/env node
+// Generates every page of open-citadel.org from the submodules under vendor/.
+//
+// Nothing in src/content/docs/ is hand-edited — it is rebuilt on each build from
+// vendor/oars and vendor/community, so the site cannot drift from the standards
+// it publishes. Edit the source repository, not the output.
+//
+// Scoring is done by importing OARS's own reference implementation rather than
+// reimplementing it here. If the site and the standard ever disagreed about a
+// score, the site would be the wrong one, so it is not given the chance.
+
+import { mkdirSync, writeFileSync, readFileSync, rmSync, copyFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parse } from 'yaml';
+import { loadModel, loadPermissionRatings, loadSpecMeta } from '../vendor/oars/tools/lib/model.mjs';
+import { scorePermission } from '../vendor/oars/tools/lib/score.mjs';
+
+const SITE = join(dirname(fileURLToPath(import.meta.url)), '..');
+const DOCS = join(SITE, 'src', 'content', 'docs');
+const PUBLIC = join(SITE, 'public');
+const OARS = join(SITE, 'vendor', 'oars');
+const COMMUNITY = join(SITE, 'vendor', 'community');
+
+for (const [name, path] of [
+  ['vendor/oars', OARS],
+  ['vendor/community', COMMUNITY],
+]) {
+  if (!existsSync(join(path, 'README.md'))) {
+    console.error(`\n  ${name} is empty. Run:  git submodule update --init --recursive\n`);
+    process.exit(1);
+  }
+}
+
+const GH = 'https://github.com/opencitadel';
+const GH_OARS = `${GH}/OARS/blob/main`;
+const GH_COMMUNITY = `${GH}/community/blob/main`;
+
+const model = loadModel();
+const spec = loadSpecMeta();
+const standards = parse(readFileSync(join(COMMUNITY, 'standards.yaml'), 'utf8'));
+
+// --- Link rewriting ----------------------------------------------------------
+// Source files use repo-relative links so they read correctly on GitHub, where
+// review happens. Rewrite them to site paths so they work here too.
+
+const LINKS = [
+  // OARS specification cross-references
+  [/\]\(\.\/(\d\d)-([a-z-]+)\.md/g, '](/oars/$1-$2/'],
+  [/\]\(\.\.\/(\d\d)-([a-z-]+)\.md/g, '](/oars/$1-$2/'],
+  [/\]\(\.\/standard\/(\d\d)-([a-z-]+)\.md/g, '](/oars/$1-$2/'],
+  [/\]\(\.\/standard\/\)/g, '](/oars/'],
+  // OARS documents that get their own page
+  [/\]\(\.\/CONTRIBUTING\.md/g, '](/oars/contributing/'],
+  [/\]\(\.\/OPEN-QUESTIONS\.md/g, '](/oars/open-questions/'],
+  // Community documents, referenced either relatively or by GitHub URL
+  [/\]\(\.\/CHARTER\.md/g, '](/community/charter/'],
+  [/\]\(\.\/GOVERNANCE\.md/g, '](/community/governance/'],
+  [/\]\(\.\/CODE_OF_CONDUCT\.md/g, '](/community/code-of-conduct/'],
+  [/\]\(\.\/COMMUNICATION\.md/g, '](/community/communication/'],
+  [/\]\(\.\/STANDARDS\.md/g, '](/community/standards/'],
+  [/\]\(\.\.\/GOVERNANCE\.md/g, '](/community/governance/'],
+  [new RegExp(`\\]\\(${GH_COMMUNITY}/CHARTER\\.md`, 'g'), '](/community/charter/'],
+  [new RegExp(`\\]\\(${GH_COMMUNITY}/GOVERNANCE\\.md`, 'g'), '](/community/governance/'],
+  [new RegExp(`\\]\\(${GH_COMMUNITY}/CODE_OF_CONDUCT\\.md`, 'g'), '](/community/code-of-conduct/'],
+  [new RegExp(`\\]\\(${GH_COMMUNITY}/COMMUNICATION\\.md`, 'g'), '](/community/communication/'],
+  // Everything else stays in the repository it came from
+  [/\]\(\.\/AUTHORS\.md/g, `](${GH_OARS}/AUTHORS.md`],
+  [/\]\(\.\/CITATION\.cff/g, `](${GH_OARS}/CITATION.cff`],
+  [/\]\(\.\/SECURITY\.md/g, `](${GH_OARS}/SECURITY.md`],
+  [/\]\(\.\/LICENSE-CODE/g, `](${GH_OARS}/LICENSE-CODE`],
+  [/\]\(\.\/data\//g, `](${GH_OARS}/data/`],
+  [/\]\(\.\/schemas\//g, `](${GH_OARS}/schemas/`],
+  [/\]\(\.\/standards\.yaml/g, `](${GH_COMMUNITY}/standards.yaml`],
+  [/\]\(\.\/LICENSE\)/g, `](${GH_COMMUNITY}/LICENSE)`],
+];
+
+const rewrite = (text) => LINKS.reduce((acc, [re, to]) => acc.replace(re, to), text);
+const yamlStr = (v) => `"${String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+
+function write(rel, contents) {
+  const path = join(DOCS, rel);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, contents);
+}
+
+/** Wrap a plain repository markdown file as a Starlight page. */
+function page(rel, { title, description, order, source }, body) {
+  write(
+    rel,
+    `---
+title: ${yamlStr(title)}
+description: ${yamlStr(description)}${
+      order !== undefined ? `\nsidebar:\n  order: ${order}` : ''
+    }
+---
+
+${rewrite(body).replace(/^#\s+.*\n+/, '')}
+${source ? `\n---\n\n*Source: [${source.label}](${source.url})*\n` : ''}`
+  );
+}
+
+rmSync(DOCS, { recursive: true, force: true });
+mkdirSync(DOCS, { recursive: true });
+
+// --- Scored ratings ----------------------------------------------------------
+
+const ratings = loadPermissionRatings().map(({ data }) => ({
+  ...data,
+  result: scorePermission(data, model),
+}));
+
+const tierMeta = Object.fromEntries(model.tiers.tiers.map((t) => [t.id, t]));
+const tierBadge = (id) => `<span class="oars-tier oars-tier--${id}">${tierMeta[id].name}</span>`;
+const byTier = model.tiers.tiers.map((t) => ({
+  ...t,
+  count: ratings.filter((r) => r.result.tier === t.id).length,
+}));
+
+// --- Landing -----------------------------------------------------------------
+
+const standardRows = Object.values(standards.standards)
+  .map((s) => {
+    const link = s.status === 'planned' ? '/community/standards/' : '/oars/';
+    // The landing page is MDX, so tags here must be self-closing JSX.
+    const expanded = s.expanded_name
+      ? `<br /><span class="citadel-muted">${s.expanded_name}</span>`
+      : '';
+    return `| [**${s.display_name}**](${link})${expanded} | ${s.status.replace(
+      '-',
+      ' '
+    )} | ${s.summary.trim()} |`;
+  })
+  .join('\n');
+
+write(
+  'index.mdx',
+  `---
+title: Open Citadel
+description: ${yamlStr(
+    'Open standards for Microsoft security decisions. OARS rates the risk of applications and the permissions they request in Microsoft Entra ID.'
+  )}
+template: splash
+head:
+  - tag: title
+    content: Open Citadel — Open standards for Microsoft security decisions
+hero:
+  tagline: |
+    Open standards for Microsoft security decisions.
+    Because a risk rating you cannot inspect is a risk rating you cannot defend.
+  actions:
+    - text: Read OARS
+      link: /oars/
+      icon: right-arrow
+      variant: primary
+    - text: How this project works
+      link: /community/charter/
+      icon: information
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## The problem
+
+An Entra admin is asked to approve an application requesting \`Mail.Read\`. Is that
+risky? Should a directory role be classed as Critical, or merely High?
+
+These questions get answered every day — usually by tooling whose reasoning nobody
+can inspect, or by tribal knowledge that cannot be defended in an audit. Where a
+rating exists, the method behind it is almost always invisible.
+
+**We publish the method, not just the answer.**
+
+## Standards
+
+| Standard | Status | What it covers |
+|---|---|---|
+${standardRows}
+
+<CardGrid>
+  <Card title="Open method" icon="open-book">
+    Every rating traces to published factors, published weights, and published
+    rationale. If you disagree with a rating, you can see exactly which input to
+    argue about.
+  </Card>
+  <Card title="Evidence over assertion" icon="approve-check">
+    Scoring inputs must be programmatically retrievable from authoritative
+    sources. Self-attestation and vendor claims are not inputs.
+  </Card>
+  <Card title="Machine-readable first" icon="seti:json">
+    Every standard ships JSON that tools consume directly. A standard only humans
+    can read cannot be enforced consistently, and prose alone has no test suite.
+  </Card>
+  <Card title="Nobody owns it" icon="star">
+    The chair rotates every six months, decisions are made in public, and the
+    licence keeps the work open regardless of who maintains it.
+
+    [Governance →](/community/governance/)
+  </Card>
+</CardGrid>
+
+## Taking part
+
+You do not need to be a maintainer or a security researcher. The most useful thing
+you can tell us is *"I run tenants, and this rating does not match what I see in
+production."*
+
+[Contribute to OARS](/oars/contributing/) ·
+[Open questions](/oars/open-questions/) ·
+[Discord](https://open-citadel.org/discord) ·
+[GitHub](https://github.com/opencitadel)
+`
+);
+
+// --- OARS: the specification -------------------------------------------------
+
+write('oars/index.md', rewrite(readFileSync(join(OARS, 'standard', 'index.md'), 'utf8')));
+
+for (const section of spec.sections) {
+  write(`oars/${section.file}`, rewrite(readFileSync(join(OARS, 'standard', section.file), 'utf8')));
+}
+
+// --- OARS: contributing and open questions -----------------------------------
+
+page(
+  'oars/contributing.md',
+  {
+    title: 'Contributing to OARS',
+    description:
+      'How to rate a permission, propose a change to the model, or correct the specification.',
+    source: { label: 'OARS/CONTRIBUTING.md', url: `${GH_OARS}/CONTRIBUTING.md` },
+  },
+  readFileSync(join(OARS, 'CONTRIBUTING.md'), 'utf8')
+);
+
+page(
+  'oars/open-questions.md',
+  {
+    title: 'Open questions',
+    description: 'What the working group must resolve before OARS can be ratified.',
+    source: { label: 'OARS/OPEN-QUESTIONS.md', url: `${GH_OARS}/OPEN-QUESTIONS.md` },
+  },
+  readFileSync(join(OARS, 'OPEN-QUESTIONS.md'), 'utf8')
+);
+
+// --- OARS: permission explorer -----------------------------------------------
+
+const slugFor = (r) =>
+  `${r.permission.toLowerCase()}-${r.type}${r.rsc ? '-rsc' : ''}`.replace(/[^a-z0-9-]/g, '-');
+
+const indexRows = [...ratings]
+  .sort((a, b) => b.result.score - a.result.score || a.permission.localeCompare(b.permission))
+  .map(
+    (r) =>
+      `| [\`${r.permission}\`](/oars/permissions/${slugFor(r)}/) | ${
+        r.rsc ? `${r.type}, RSC` : r.type
+      } | ${r.result.score} | ${tierBadge(r.result.tier)} |`
+  )
+  .join('\n');
+
+write(
+  'oars/permissions/index.md',
+  `---
+title: Permissions
+description: ${yamlStr(
+    'Every Microsoft Graph permission rated against the OARS permission-level model, with its score, tier, and the reasoning behind it.'
+  )}
+tableOfContents: false
+---
+
+Every permission rated against the [permission-level model](/oars/03-permission-risk-factors/).
+Each rating shows which factors were assigned, what each contributed, and why — so you
+can disagree with a specific input rather than with the number.
+
+${byTier.map((t) => `${tierBadge(t.id)} ${t.count}`).join(' · ')} · **${ratings.length} rated**
+
+:::caution[This dataset is a seed, not coverage]
+Microsoft Graph exposes well over a thousand permissions. These ${ratings.length} exist to
+exercise the model end to end and to make its calibration visible. **A permission that is
+not listed here is unrated, not low-risk** — implementations must report it as unrated.
+See [OQ-5](/oars/open-questions/#oq-5--rating-coverage-and-prioritisation).
+:::
+
+| Permission | Type | Score | Tier |
+|---|---|---:|---|
+${indexRows}
+
+## How a score is reached
+
+Raw factor scores are grouped by risk domain, normalized against the domain's maximum,
+weighted by the domain's share, and summed into a 0–100 composite —
+[the full method is in §4](/oars/04-scoring-and-tiers/).
+
+| Domain | Weight | Maximum raw |
+|---|---:|---:|
+${[...model.permission.groups.values()]
+  .map((g) => `| ${g.name} | ${g.weight}% | ${g.maxScore} |`)
+  .join('\n')}
+
+:::note[Calibration is an open question]
+These scores come from the method stated in §4.1. That method compresses real
+permissions toward the low end of the scale, and it disagrees with the worked examples
+in §6 by a full tier. This is the working group's top open question —
+see [OQ-1](/oars/open-questions/#oq-1--which-aggregation-method-is-normative-blocking).
+:::
+
+## Using this data
+
+\`\`\`bash
+curl -O https://open-citadel.org/oars-permissions.json
+\`\`\`
+
+[Model](/oars-model.json) · [Permissions](/oars-permissions.json) · [Combinations](/oars-combos.json)
+`
+);
+
+for (const rating of ratings) {
+  const { result } = rating;
+  const factorRows = result.factors
+    .map((f) => {
+      const factor = model.permission.factors.get(f.factor);
+      const domain = model.permission.groups.get(factor.domain);
+      return `| ${f.name} | ${f.label} | ${f.score}${
+        f.rscApplied ? ' *(RSC)*' : ''
+      } | ${domain.name} |`;
+    })
+    .join('\n');
+
+  const domainRows = result.groups
+    .map(
+      (g) =>
+        `| ${g.name} | ${g.raw} / ${g.max} | ${g.normalized}% | ${g.weight}% | **${g.weighted}** |`
+    )
+    .join('\n');
+
+  write(
+    `oars/permissions/${slugFor(rating)}.md`,
+    `---
+title: ${yamlStr(rating.permission)}
+description: ${yamlStr(
+      `${rating.permission} (${rating.type}) is rated ${tierMeta[result.tier].name} with a composite OARS score of ${result.score}.`
+    )}
+---
+
+${tierBadge(result.tier)} **${result.score} / 100** · ${rating.type}${
+      rating.rsc ? ' · Resource-Specific Consent' : ''
+    } · ${rating.api}
+
+## Why
+
+${rating.rationale}
+
+## Factor assignments
+
+| Factor | Value | Score | Domain |
+|---|---|---:|---|
+${factorRows}
+
+## How the score is reached
+
+| Domain | Raw | Normalized | Weight | Contribution |
+|---|---:|---:|---:|---:|
+${domainRows}
+| | | | **Composite** | **${result.score}** |
+
+${
+  rating.rscAlternative
+    ? `:::tip[A narrower scope exists]\n\`${rating.rscAlternative}\` achieves the same outcome with Resource-Specific Consent, scoped to explicitly assigned resources. Requesting this scope instead is a missed least-privilege opportunity — see [§3.2.2](/oars/03-permission-risk-factors/#322-penalty-for-avoiding-rsc).\n:::\n`
+    : ''
+}${
+      rating.deprecated
+        ? ':::caution[Deprecated]\nMicrosoft has deprecated this permission.\n:::\n'
+        : ''
+    }${rating.notes ? `## Notes\n\n${rating.notes}\n` : ''}
+${
+  rating.references?.length
+    ? `## References\n\n${rating.references.map((r) => `- <${r}>`).join('\n')}\n`
+    : ''
+}
+---
+
+Disagree with this rating? That is the point — open a
+[rating change request](${GH}/OARS/issues/new?template=rating-change.yml)
+naming the factor you would change and the evidence for it.
+`
+  );
+}
+
+// --- Community ---------------------------------------------------------------
+
+const COMMUNITY_PAGES = [
+  { file: 'CHARTER.md', slug: 'charter', title: 'Charter', order: 1,
+    description: 'The mission, principles, and scope of Open Citadel.' },
+  { file: 'GOVERNANCE.md', slug: 'governance', title: 'Governance', order: 2,
+    description: 'Roles, decision-making, the standard lifecycle, and versioning.' },
+  { file: 'COMMUNICATION.md', slug: 'communication', title: 'Communication', order: 3,
+    description: 'Where to talk about what, and why decisions never happen in chat.' },
+  { file: 'STANDARDS.md', slug: 'standards', title: 'Standards registry', order: 4,
+    description: 'Every standard Open Citadel maintains or plans, with status and editors.' },
+  { file: 'CODE_OF_CONDUCT.md', slug: 'code-of-conduct', title: 'Code of Conduct', order: 5,
+    description: 'The standards of behaviour expected everywhere in this community.' },
+];
+
+for (const doc of COMMUNITY_PAGES) {
+  page(
+    `community/${doc.slug}.md`,
+    {
+      title: doc.title,
+      description: doc.description,
+      order: doc.order,
+      source: { label: `community/${doc.file}`, url: `${GH_COMMUNITY}/${doc.file}` },
+    },
+    readFileSync(join(COMMUNITY, doc.file), 'utf8')
+  );
+}
+
+// --- Release artifacts -------------------------------------------------------
+// Built by the standard's own pipeline, then published from the site so that
+// open-citadel.org is the distribution point as well as the documentation.
+
+execFileSync('node', [join(OARS, 'tools', 'build.mjs')], { stdio: 'pipe' });
+
+mkdirSync(PUBLIC, { recursive: true });
+let copied = 0;
+for (const artifact of [
+  'oars-model.json',
+  'oars-permissions.json',
+  'oars-combos.json',
+  'permission-rating.schema.json',
+]) {
+  const from = join(OARS, 'dist', artifact);
+  if (existsSync(from)) {
+    copyFileSync(from, join(PUBLIC, artifact));
+    copied += 1;
+  }
+}
+
+console.log('');
+console.log('  open-citadel.org content synced');
+console.log('  ' + '-'.repeat(60));
+console.log(`  ${String(spec.sections.length + 1).padStart(3)} OARS specification pages`);
+console.log(`  ${String(ratings.length).padStart(3)} permission pages`);
+console.log(`  ${String(COMMUNITY_PAGES.length).padStart(3)} community pages`);
+console.log(`  ${String(copied).padStart(3)} release artifacts published`);
+console.log('');

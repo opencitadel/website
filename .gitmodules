@@ -1,0 +1,6 @@
+[submodule "vendor/oars"]
+	path = vendor/oars
+	url = https://github.com/opencitadel/OARS.git
+[submodule "vendor/community"]
+	path = vendor/community
+	url = https://github.com/opencitadel/community.git

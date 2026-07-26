@@ -1,0 +1,49 @@
+name: Update submodules
+
+# Opens a pull request when a standard has moved on, so publishing stays a
+# reviewed decision rather than a side effect of someone merging a rating change.
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Pull latest from each standard
+        run: git submodule update --remote
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verify the site still builds
+        run: |
+          node vendor/oars/tools/validate.mjs
+          npm run build
+          npm run check-links
+
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          title: "Publish latest standards"
+          branch: update-submodules
+          delete-branch: true
+          commit-message: "Publish latest standards"
+          body: |
+            Submodules have moved on. Merging this publishes the current state
+            of each standard to open-citadel.org.
+
+            Validation, the site build, and the link check all passed against
+            these commits.

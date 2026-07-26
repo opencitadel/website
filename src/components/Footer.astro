@@ -1,0 +1,46 @@
+---
+// Extends Starlight's footer with the attribution the CC BY 4.0 licence
+// requires. Putting it here rather than in each page means it cannot be lost
+// when content is regenerated.
+//
+// The OARS attribution shows only on OARS pages — on the charter or the code of
+// conduct it would be attributing the wrong thing.
+import Default from '@astrojs/starlight/components/Footer.astro';
+
+const isOars = Astro.url.pathname.startsWith('/oars');
+---
+
+<Default><slot /></Default>
+
+<div class="citadel-attribution">
+  {
+    isOars && (
+      <p>
+        <strong>OARS — Open App Risk Standard</strong> is derived from the Graph Consent
+        Risk Framework by <a href="https://github.com/kuddyc">Khurram Chaudhary</a>.
+        Specification and dataset licensed{' '}
+        <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; tooling
+        licensed{' '}
+        <a href="https://github.com/opencitadel/OARS/blob/main/LICENSE-CODE">MIT</a>. ©
+        2026 Khurram Chaudhary and the Open Citadel contributors.
+      </p>
+    )
+  }
+  <p>
+    An <a href="https://open-citadel.org">Open Citadel</a> project ·
+    <a href="https://github.com/opencitadel">GitHub</a> ·
+    {
+      isOars && (
+        <>
+          <a href="https://github.com/opencitadel/OARS/blob/main/CITATION.cff">
+            Cite this standard
+          </a>{' '}
+          ·{' '}
+        </>
+      )
+    }
+    <a href="https://github.com/opencitadel/community/blob/main/CODE_OF_CONDUCT.md">
+      Code of Conduct
+    </a>
+  </p>
+</div>

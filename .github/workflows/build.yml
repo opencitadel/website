@@ -1,0 +1,43 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The standard must be valid before the site publishes it. A broken rating
+      # fails the build rather than shipping a wrong score.
+      - name: Validate the standard
+        run: node vendor/oars/tools/validate.mjs
+
+      - name: Build the site
+        run: npm run build
+
+      # Catches a specification cross-reference that no longer resolves — the
+      # most common breakage when sections are renamed.
+      - name: Check internal links
+        run: node scripts/check-links.mjs
