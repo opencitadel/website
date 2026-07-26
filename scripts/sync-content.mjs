@@ -28,7 +28,11 @@ for (const [name, path] of [
   ['vendor/community', COMMUNITY],
 ]) {
   if (!existsSync(join(path, 'README.md'))) {
-    console.error(`\n  ${name} is empty. Run:  git submodule update --init --recursive\n`);
+    console.error(`\n  ${name} is empty — its submodule has not been checked out.`);
+    console.error(`\n  Locally:     git submodule update --init --recursive`);
+    console.error(`  On CI:       add "submodules: recursive" to actions/checkout`);
+    console.error(`  Cloudflare:  prefix the build command with`);
+    console.error(`               git submodule update --init --recursive\n`);
     process.exit(1);
   }
 }

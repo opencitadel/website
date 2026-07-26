@@ -11,12 +11,23 @@ runtime — a standards site should outlive the infrastructure it launched on.
 |---|---|
 | Production branch | `main` |
 | Framework preset | **None** |
-| Build command | `npm ci && npm run build` |
+| Build command | `npm ci && git submodule update --init --recursive && npm run build` |
 | Build output directory | `dist` |
 | Root directory | *(empty)* |
 
 Add an environment variable `NODE_VERSION` = `22` under **Settings →
 Environment variables**, for both Production and Preview.
+
+> **Connect this repository, not a content repository.** `opencitadel/community`
+> and `opencitadel/OARS` are content — community in particular has no
+> `package.json`, so a build pointed at it fails immediately on `npm ci` with
+> *"can only install with an existing package-lock.json"*. Cloudflare cannot
+> re-point an existing Pages project at a different repository: delete the
+> project and create a new one.
+
+The explicit `git submodule update` is belt and braces. Cloudflare normally
+fetches submodules during clone, but the step is idempotent and turns a
+confusing empty-directory failure into a no-op when they are already there.
 
 ### Submodules
 
