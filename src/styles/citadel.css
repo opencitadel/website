@@ -133,11 +133,29 @@ main h1#_top,
 
 /* --- Header -------------------------------------------------------------- */
 
-.header {
+/* Starlight nests <div class="header"> inside <header class="header">, so an
+   unqualified `.header` rule paints the chrome twice. The inner copy is only as
+   tall as its contents, which drops a stray hairline straight across the bottom
+   of the search field. Scope the chrome to the outer element. */
+header.header {
   background-color: var(--sl-color-bg-nav);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--sl-color-hairline);
+}
+
+/* Search sits in a wide middle grid column. Push it to the end of that column so
+   it reads as one right-hand cluster with the icons and theme toggle, rather
+   than floating in the middle of the header. Scoped to the breakpoint where
+   Starlight switches the header to that grid; below it the header is a simple
+   flex row and the default placement is correct.
+
+   `site-search` itself is `display: contents`, so it generates no box and the
+   button is the actual flex item — the auto margin has to go there. */
+@media (min-width: 50rem) {
+  header.header site-search > button[data-open-modal] {
+    margin-inline-start: auto;
+  }
 }
 
 .site-title {
