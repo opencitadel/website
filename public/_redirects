@@ -1,17 +1,9 @@
 # Cloudflare Pages redirects.
 #
-# ┌──────────────────────────────────────────────────────────────────────────┐
-# │ REQUIRED BEFORE LAUNCH                                                   │
-# │ Replace REPLACE_WITH_DISCORD_INVITE below with the permanent (never-      │
-# │ expiring) invite code for the Open Citadel Discord. Until then /discord   │
-# │ 404s and the Discord icon in the site header is a dead link.              │
-# │ See vendor/community/docs/discord.md.                                     │
-# └──────────────────────────────────────────────────────────────────────────┘
-#
 # The vanity path exists so the invite can be rotated without editing every
 # link across three repositories.
 
-/discord  https://discord.gg/REPLACE_WITH_DISCORD_INVITE  302
+/discord  https://discord.gg/KdJdfabkDM  302
 
 # Convenience paths for the published artifacts.
 /model.json        /oars-model.json        302
