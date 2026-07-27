@@ -10,7 +10,8 @@
     "build": "node scripts/sync-content.mjs && astro build",
     "preview": "astro preview",
     "sync": "node scripts/sync-content.mjs",
-    "check-links": "node scripts/check-links.mjs"
+    "check-links": "node scripts/check-links.mjs",
+    "og": "node scripts/og-image.mjs"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.41.4",
@@ -21,7 +22,9 @@
     "yaml": "^2.6.1"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "ajv": "^8.20.0",
-    "ajv-formats": "^3.0.1"
+    "ajv-formats": "^3.0.1",
+    "satori": "^0.29.0"
   }
 }

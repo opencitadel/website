@@ -39,6 +39,10 @@ export default defineConfig({
           tag: 'link',
           attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png', sizes: '180x180' },
         },
+        {
+          tag: 'meta',
+          attrs: { property: 'og:site_name', content: 'Open Citadel' },
+        },
       ],
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/opencitadel' },
